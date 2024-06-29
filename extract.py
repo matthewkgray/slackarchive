@@ -19,7 +19,6 @@ with open("users.json") as f:
 
 
 def format(t):
-    #<@U0188NBJRD0>
     n = 0
     log = ""
     while "<@" in t and n < 100:
