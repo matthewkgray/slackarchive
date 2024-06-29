@@ -39,7 +39,8 @@ def format(t):
         endangle = t[idx+1:].index(">")
         url = t[idx+1:idx+endangle+1]
         if "|" in url:
-            (urla, urlb) = url.split("|")
+            #print(f"{url} spotted", file=sys.stderr)
+            (urla, urlb) = url.split("|", 1)
             t = t.replace(f"<{urlb}>", f" <a href={urla} >{urlb}</a> ")
         else:
             t = t.replace(f"<{url}>", f" <a href={url} >{url}</a> ")
@@ -74,10 +75,17 @@ for fn in files:
         # Print the data
         #print(json.dumps(data, indent=7))
         for msg in data:
+            if not msg.get("ts"):
+                print(f"In file {fn}, no ts in msg {msg}", file=sys.stderr)
+                continue
             text = msg.get("text", "---")
             text = format(text)
-            userid = msg["user"]
-            username = users.get(userid, userid)
+            userid = msg.get("user", None)
+            if userid:
+                username = users.get(userid, userid)
+            else:
+                userid = "bot/other"
+                username = "BOT"
             msgcount[username] += 1
             ts = msg["ts"]
             threadid = msg.get("thread_ts", None)
