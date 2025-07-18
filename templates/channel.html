@@ -2,27 +2,48 @@
 <html>
 <head>
 <title>Slack Conversation</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div>
-<table rules=all border=1>
-{% for message in messages %}
-<tr id={{ message.ts }}>
-<td valign=top>
-<b>{{ message.user }}</b><br>
-<i><font color=gray><a href='#{{ message.ts }}' style='color:gray'>{{ message.when }}</a></font></i>
-</td>
-<td>
-{{ message.text }}
-{% if message.is_thread_start %}
-<table border=1 rules=all>
-<thread id={{ message.ts }}>
-</table>
-{% endif %}
-</td>
-</tr>
-{% endfor %}
-</table>
+<div class="container">
+    <div class="month-nav">
+        {% for month in months %}
+            <a href="#{{ month.id }}">{{ month.name }}</a>
+        {% endfor %}
+    </div>
+
+    {% for message in messages %}
+        {% if message.new_month %}
+            <h2 id="{{ message.month_id }}">{{ message.month_name }}</h2>
+        {% endif %}
+
+        {% if message.temporal_gap %}
+            <div class="temporal-gap">{{ message.temporal_gap }}</div>
+        {% endif %}
+
+        <div class="message" id="{{ message.ts }}">
+            <div class="author">
+                {{ message.user }}<br>
+                <a href="#{{ message.ts }}" class="timestamp">{{ message.when }}</a>
+            </div>
+            <div class="text">
+                {{ message.text }}
+                {% if message.is_thread_start and message.replies %}
+                    <div class="thread">
+                        {% for reply in message.replies %}
+                            <div class="message">
+                                <div class="author">
+                                    {{ reply.user }}<br>
+                                    <a href="#{{ reply.ts }}" class="timestamp">{{ reply.when }}</a>
+                                </div>
+                                <div class="text">{{ reply.text }}</div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    {% endfor %}
 </div>
 </body>
 </html>

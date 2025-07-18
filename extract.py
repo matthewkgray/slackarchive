@@ -31,6 +31,9 @@ def load_users(users_file):
     return users
 
 def format_text(t, users):
+    # Handle triple-quoted sections
+    t = re.sub(r'```(.*?)```', r'<pre>\1</pre>', t, flags=re.DOTALL)
+
     n = 0
     log = ""
     while "<@" in t and n < 100:
@@ -70,7 +73,7 @@ def process_messages(channel_dir, users):
         files = list(os.listdir(channel_dir))
     except FileNotFoundError:
         logging.error(f"Channel directory not found at '{channel_dir}'")
-        return [], {}
+        return [], {}, []
     files.sort()
 
     stats = {
@@ -82,6 +85,9 @@ def process_messages(channel_dir, users):
         "personwordcount": defaultdict(int)
     }
     messages = []
+    months = []
+    last_month = None
+    last_ts = 0
 
     for fn in files:
         if not re.match(r'\d{4}-\d{2}-\d{2}\.json$', fn):
@@ -121,6 +127,24 @@ def process_messages(channel_dir, users):
                 user = username
 
             when = datetime.datetime.fromtimestamp(int(float(ts)))
+            month_id = when.strftime('%Y-%m')
+            month_name = when.strftime('%B %Y')
+
+            if month_id != last_month:
+                months.append({'id': month_id, 'name': month_name})
+                new_month = True
+                last_month = month_id
+            else:
+                new_month = False
+
+            temporal_gap = None
+            if last_ts > 0:
+                gap = int(float(ts)) - last_ts
+                if gap > 3600 * 24: # 1 day
+                    days = gap / (3600 * 24)
+                    temporal_gap = f"--- {days:.1f} days ---"
+            last_ts = int(float(ts))
+
             low = text.lower().replace(".", " ").replace("!", " ").replace("?", " ").replace(",", " ")
             words = low.split(" ")
 
@@ -135,9 +159,13 @@ def process_messages(channel_dir, users):
             message_data = {
                 'ts': ts,
                 'user': user,
-                'when': when,
+                'when': when.strftime('%Y-%m-%d %H:%M:%S'),
                 'text': text,
-                'is_thread_start': threadid == ts
+                'is_thread_start': threadid == ts,
+                'new_month': new_month,
+                'month_id': month_id,
+                'month_name': month_name,
+                'temporal_gap': temporal_gap
             }
 
             if threadid and threadid != ts:
@@ -152,7 +180,7 @@ def process_messages(channel_dir, users):
 
             stats["count"] += 1
 
-    return messages, stats
+    return messages, stats, months
 
 def generate_stats(stats, users):
     stats_data = {}
@@ -229,13 +257,13 @@ def main():
         logging.info(f"Processing channel: {channel}")
         channel_dir = os.path.join(config['input_directory'], channel)
 
-        messages, stats = process_messages(channel_dir, users)
+        messages, stats, months = process_messages(channel_dir, users)
 
         if not messages:
             logging.warning(f"No messages found for channel: {channel}")
             continue
 
-        output = render_template('channel.html', {'messages': messages})
+        output = render_template('channel.html', {'messages': messages, 'months': months})
 
         output_file = os.path.join(output_dir, f"{channel}.html")
         try:
