@@ -2,34 +2,49 @@
 <html>
 <head>
 <title>Slack Conversation</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div>
-<table rules=all border=1>
+<div class="container">
+    <div class="month-nav">
 
-<tr id=1666886400.000100>
-<td valign=top>
-<b>U123</b><br>
-<i><font color=gray><a href='#1666886400.000100' style='color:gray'>2022-10-27 16:00:00</a></font></i>
-</td>
-<td>
-Hello, world!
+            <a href="#2022-10">October 2022</a>
 
-</td>
-</tr>
+    </div>
 
-<tr id=1666886460.000200>
-<td valign=top>
-<b>U456</b><br>
-<i><font color=gray><a href='#1666886460.000200' style='color:gray'>2022-10-27 16:01:00</a></font></i>
-</td>
-<td>
-Hi, @???! How are you?
 
-</td>
-</tr>
 
-</table>
+            <h2 id="2022-10">October 2022</h2>
+
+
+
+
+        <div class="message" id="1666886400.000100" style="background-color: #cee6e0;">
+            <div class="header">
+                <span class="author">testuser1</span>
+                <a href="#1666886400.000100" class="timestamp">2022-10-27 16:00:00</a>
+            </div>
+            <div class="text">
+                Hello, world!
+
+            </div>
+        </div>
+
+
+
+
+
+        <div class="message" id="1666886460.000200" style="background-color: #d1d9e7;">
+            <div class="header">
+                <span class="author">testuser2</span>
+                <a href="#1666886460.000200" class="timestamp">2022-10-27 16:01:00</a>
+            </div>
+            <div class="text">
+                Hi, @testuser1! How are you?
+
+            </div>
+        </div>
+
 </div>
 </body>
 </html>
