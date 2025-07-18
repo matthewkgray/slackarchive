@@ -97,7 +97,7 @@ def process_messages(channel_dir, users):
         "personwordcount": defaultdict(int)
     }
     messages = []
-    months = []
+    all_months = {}
     last_month = None
     last_ts = 0
 
@@ -144,9 +144,9 @@ def process_messages(channel_dir, users):
             when = datetime.datetime.fromtimestamp(int(float(ts)))
             month_id = when.strftime('%Y-%m')
             month_name = when.strftime('%B %Y')
+            all_months[month_id] = month_name
 
             if month_id != last_month:
-                months.append({'id': month_id, 'name': month_name})
                 new_month = True
                 last_month = month_id
             else:
@@ -172,7 +172,7 @@ def process_messages(channel_dir, users):
             user = user.replace("é", "&eacute;").replace("í", "&iacute;")
 
             message_data = {
-                'ts': ts,
+                'ts': ts.replace('.', '-'),
                 'user': user,
                 'when': when.strftime('%Y-%m-%d %H:%M:%S'),
                 'text': text,
@@ -186,7 +186,7 @@ def process_messages(channel_dir, users):
 
             if threadid and threadid != ts:
                 for m in messages:
-                    if m['ts'] == threadid:
+                    if m['ts'] == threadid.replace('.', '-'):
                         if 'replies' not in m:
                             m['replies'] = []
                         m['replies'].append(message_data)
@@ -196,6 +196,7 @@ def process_messages(channel_dir, users):
 
             stats["count"] += 1
 
+    months = [{'id': month_id, 'name': all_months[month_id]} for month_id in sorted(all_months.keys())]
     return messages, stats, months
 
 def generate_stats(stats, users):
