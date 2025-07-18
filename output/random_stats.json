@@ -1,11 +1,11 @@
 {
     "posters": {
-        "Alice": 1
+        "U123": 1
     },
     "total_messages": 1,
     "word_stats": {},
     "user_word_stats": {
-        "Alice": {
+        "U123": {
             "total_words": 6,
             "message_count": 1,
             "percentage_of_all_words": "100.0%"
