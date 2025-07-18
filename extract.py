@@ -97,9 +97,10 @@ def process_messages(channel_dir, users):
         "personwordcount": defaultdict(int)
     }
     messages = []
-    all_months = {}
+    months = []
     last_month = None
     last_ts = 0
+    month_for_message = {}
 
     for fn in files:
         if not re.match(r'\d{4}-\d{2}-\d{2}\.json$', fn):
@@ -144,9 +145,10 @@ def process_messages(channel_dir, users):
             when = datetime.datetime.fromtimestamp(int(float(ts)))
             month_id = when.strftime('%Y-%m')
             month_name = when.strftime('%B %Y')
-            all_months[month_id] = month_name
+            month_for_message[ts] = month_id
 
             if month_id != last_month:
+                months.append({'id': month_id, 'name': month_name})
                 new_month = True
                 last_month = month_id
             else:
@@ -196,7 +198,16 @@ def process_messages(channel_dir, users):
 
             stats["count"] += 1
 
-    months = [{'id': month_id, 'name': all_months[month_id]} for month_id in sorted(all_months.keys())]
+    # Second pass to set new_month correctly
+    last_month = None
+    for msg in messages:
+        month_id = month_for_message[msg['ts'].replace('-', '.')]
+        if last_month != month_id:
+            msg['new_month'] = True
+            last_month = month_id
+        else:
+            msg['new_month'] = False
+
     return messages, stats, months
 
 def generate_stats(stats, users):
