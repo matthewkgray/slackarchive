@@ -22,8 +22,8 @@
         {% endif %}
 
         <div class="message" id="{{ message.ts }}">
-            <div class="author">
-                {{ message.user }}<br>
+            <div class="header">
+                <span class="author">{{ message.user }}</span>
                 <a href="#{{ message.ts }}" class="timestamp">{{ message.when }}</a>
             </div>
             <div class="text">
@@ -32,8 +32,8 @@
                     <div class="thread">
                         {% for reply in message.replies %}
                             <div class="message">
-                                <div class="author">
-                                    {{ reply.user }}<br>
+                                <div class="header">
+                                    <span class="author">{{ reply.user }}</span>
                                     <a href="#{{ reply.ts }}" class="timestamp">{{ reply.when }}</a>
                                 </div>
                                 <div class="text">{{ reply.text }}</div>

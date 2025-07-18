@@ -39,13 +39,19 @@ body {
 /* Messages */
 .message {
     margin-bottom: 15px;
-    display: flex;
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 10px;
+}
+
+.message .header {
+    margin-bottom: 5px;
 }
 
 .message .author {
     font-weight: bold;
     margin-right: 10px;
-    min-width: 120px;
 }
 
 .message .timestamp {
@@ -54,7 +60,7 @@ body {
 }
 
 .message .text {
-    flex-grow: 1;
+    /* The text content of the message */
 }
 
 /* Code blocks */
