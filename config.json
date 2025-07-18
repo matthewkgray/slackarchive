@@ -1,0 +1,5 @@
+{
+  "input_directory": "slack_data",
+  "output_directory": "output",
+  "users_file": "users.json"
+}

@@ -1,0 +1,14 @@
+{
+    "posters": {
+        "Alice": 1
+    },
+    "total_messages": 1,
+    "word_stats": {},
+    "user_word_stats": {
+        "Alice": {
+            "total_words": 6,
+            "message_count": 1,
+            "percentage_of_all_words": "100.0%"
+        }
+    }
+}

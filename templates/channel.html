@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Slack Conversation</title>
+</head>
+<body>
+<div>
+<table rules=all border=1>
+{% for message in messages %}
+<tr id={{ message.ts }}>
+<td valign=top>
+<b>{{ message.user }}</b><br>
+<i><font color=gray><a href='#{{ message.ts }}' style='color:gray'>{{ message.when }}</a></font></i>
+</td>
+<td>
+{{ message.text }}
+{% if message.is_thread_start %}
+<table border=1 rules=all>
+<thread id={{ message.ts }}>
+</table>
+{% endif %}
+</td>
+</tr>
+{% endfor %}
+</table>
+</div>
+</body>
+</html>
