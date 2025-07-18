@@ -100,6 +100,7 @@ def process_messages(channel_dir, users):
     months = []
     last_month = None
     last_ts = 0
+    month_for_message = {}
 
     for fn in files:
         if not re.match(r'\d{4}-\d{2}-\d{2}\.json$', fn):
@@ -144,6 +145,7 @@ def process_messages(channel_dir, users):
             when = datetime.datetime.fromtimestamp(int(float(ts)))
             month_id = when.strftime('%Y-%m')
             month_name = when.strftime('%B %Y')
+            month_for_message[ts] = month_id
 
             if month_id != last_month:
                 months.append({'id': month_id, 'name': month_name})
@@ -172,7 +174,7 @@ def process_messages(channel_dir, users):
             user = user.replace("é", "&eacute;").replace("í", "&iacute;")
 
             message_data = {
-                'ts': ts,
+                'ts': ts.replace('.', '-'),
                 'user': user,
                 'when': when.strftime('%Y-%m-%d %H:%M:%S'),
                 'text': text,
@@ -186,7 +188,7 @@ def process_messages(channel_dir, users):
 
             if threadid and threadid != ts:
                 for m in messages:
-                    if m['ts'] == threadid:
+                    if m['ts'] == threadid.replace('.', '-'):
                         if 'replies' not in m:
                             m['replies'] = []
                         m['replies'].append(message_data)
@@ -195,6 +197,16 @@ def process_messages(channel_dir, users):
                 messages.append(message_data)
 
             stats["count"] += 1
+
+    # Second pass to set new_month correctly
+    last_month = None
+    for msg in messages:
+        month_id = month_for_message[msg['ts'].replace('-', '.')]
+        if last_month != month_id:
+            msg['new_month'] = True
+            last_month = month_id
+        else:
+            msg['new_month'] = False
 
     return messages, stats, months
 
