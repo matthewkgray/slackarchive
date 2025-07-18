@@ -1,24 +1,36 @@
-#!/opt/homebrew/bin/python3
-
-# Usage
-# ./extract.py channel > channel.html
+#!/usr/bin/env python3
 
 import json, datetime
 import os, sys
 import re
 from collections import defaultdict
+import argparse
+import logging
 
-users = {}
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-with open("users.json") as f:
-    data = json.load(f)
-    for u in data:
-        id = u["id"]
-        username = u["name"]
-        users[id] = username
+def load_config(config_file='config.json'):
+    try:
+        with open(config_file) as f:
+            return json.load(f)
+    except FileNotFoundError:
+        logging.error(f"Config file not found at '{config_file}'")
+        sys.exit(1)
 
+def load_users(users_file):
+    users = {}
+    try:
+        with open(users_file) as f:
+            data = json.load(f)
+            for u in data:
+                id = u["id"]
+                username = u["name"]
+                users[id] = username
+    except FileNotFoundError:
+        logging.warning(f"Users file not found at '{users_file}'. Usernames will not be resolved.")
+    return users
 
-def format(t):
+def format_text(t, users):
     n = 0
     log = ""
     while "<@" in t and n < 100:
@@ -26,7 +38,6 @@ def format(t):
         idx = t.index("<@")
         endangle = t[idx+2:].index(">")
         id = t[idx+2:idx+endangle+2]
-        #print(f"Maybe ID is {id}")
         log += f"Trying to replace__<@{id}>__ with @{users.get(id, '???')} at index {idx}->{endangle}"
         t = t.replace(f"<@{id}>", "@"+users.get(id, "???"))
     if n > 5:
@@ -39,110 +50,208 @@ def format(t):
         endangle = t[idx+1:].index(">")
         url = t[idx+1:idx+endangle+1]
         if "|" in url:
-            #print(f"{url} spotted", file=sys.stderr)
             (urla, urlb) = url.split("|", 1)
             t = t.replace(f"<{urlb}>", f" <a href={urla} >{urlb}</a> ")
         else:
             t = t.replace(f"<{url}>", f" <a href={url} >{url}</a> ")
-        #print(f"Replacing url {url}<br>")
     t = t.replace("’", "'")
     t = t.replace("\\n", " <br>")
-#    while re.search('.*\S{80}.*', t):
-#        t = re.sub(r'(.*)(\S{40})(\S{40})(.*)', r'\1\2 <br>\3\4', t)
     return t
-        
-files = list(os.listdir(sys.argv[1]))
-files.sort()
-stats = ""
-count = 0
-wordtot = 0
 
-personwords = defaultdict(int)
-msgcount = defaultdict(int)
-wordcount = defaultdict(int)
-personwordcount = defaultdict(int)
+from jinja2 import Environment, FileSystemLoader
 
-output = ""
+def render_template(template_name, context):
+    env = Environment(loader=FileSystemLoader('templates/'))
+    template = env.get_template(template_name)
+    return template.render(context)
 
-output += "<div>"
-output += "<table rules=all border=1>"
-for fn in files:
-    #print(f"----------{fn}----------")
-    file = sys.argv[1]+"/"+fn
-    with open(file) as f:
-        data = json.load(f)
+def process_messages(channel_dir, users):
+    try:
+        files = list(os.listdir(channel_dir))
+    except FileNotFoundError:
+        logging.error(f"Channel directory not found at '{channel_dir}'")
+        return [], {}
+    files.sort()
 
-        # Print the data
-        #print(json.dumps(data, indent=7))
+    stats = {
+        "count": 0,
+        "wordtot": 0,
+        "personwords": defaultdict(int),
+        "msgcount": defaultdict(int),
+        "wordcount": defaultdict(int),
+        "personwordcount": defaultdict(int)
+    }
+    messages = []
+
+    for fn in files:
+        file_path = os.path.join(channel_dir, fn)
+        try:
+            with open(file_path) as f:
+                data = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            logging.error(f"Error reading or parsing file {file_path}: {e}")
+            continue
+
         for msg in data:
             if not msg.get("ts"):
-                print(f"In file {fn}, no ts in msg {msg}", file=sys.stderr)
+                logging.warning(f"In file {fn}, no ts in msg {msg}")
                 continue
+
             text = msg.get("text", "---")
-            text = format(text)
+            text = format_text(text, users)
             userid = msg.get("user", None)
+
             if userid:
                 username = users.get(userid, userid)
             else:
                 userid = "bot/other"
                 username = "BOT"
-            msgcount[username] += 1
+
+            stats["msgcount"][username] += 1
             ts = msg["ts"]
             threadid = msg.get("thread_ts", None)
+
             if msg.get("user_profile", None):
                 display_name = msg["user_profile"]["display_name"]
                 real_name= msg["user_profile"]["real_name"]
                 user = msg["user_profile"]["name"]+f"({real_name})"
             else:
                 user = username
-                #print(json.dumps(msg, indent=5))
+
             when = datetime.datetime.fromtimestamp(int(float(ts)))
-            low = text.lower()
-            low = low.replace(".", " ")
-            low = low.replace("!", " ")
-            low = low.replace("?", " ")
-            low = low.replace(",", " ")
+            low = text.lower().replace(".", " ").replace("!", " ").replace("?", " ").replace(",", " ")
             words = low.split(" ")
+
             for w in words:
-                wordcount[w] += 1
-                personwordcount[f"{username}+{w}"] += 1
-                personwords[username] += 1
-                wordtot += 1
-            user = user.replace("é", "&eacute;");
-            user = user.replace("í", "&iacute;");
+                stats["wordcount"][w] += 1
+                stats["personwordcount"][f"{username}+{w}"] += 1
+                stats["personwords"][username] += 1
+                stats["wordtot"] += 1
+
+            user = user.replace("é", "&eacute;").replace("í", "&iacute;")
+
+            message_data = {
+                'ts': ts,
+                'user': user,
+                'when': when,
+                'text': text,
+                'is_thread_start': threadid == ts
+            }
+
             if threadid and threadid != ts:
-                output = output.replace(f"<thread id={threadid}>", f"<tr id={ts}><td><b>{user}</b><br><i><font color=gray><a href='#{ts}' style='color:gray'>{when}</a></font></i></td><td>{text}</td></tr><thread id={threadid}>")
+                for m in messages:
+                    if m['ts'] == threadid:
+                        if 'replies' not in m:
+                            m['replies'] = []
+                        m['replies'].append(message_data)
+                        break
             else:
-                output += f"<tr id={ts}><td valign=top><b>{user}</b><br><i><font color=gray><a href='#{ts}' style='color:gray'>{when}</a></font></i></td><td>{text} <table border=1 rules=all><thread id={ts}></table></td></tr>"
-            count += 1
+                messages.append(message_data)
 
-output += "</div></table>"
+            stats["count"] += 1
 
-print(output)
-doStats= False
-if doStats:
-    posters = list(msgcount.keys())
-    posters.sort(key=lambda x: msgcount[x])
-    print( [f"{p}:{msgcount[p]}" for p in posters])
-    print("<br>")
-    print(f"Total messages: {count}")
-    words = list(wordcount.keys())
-    words.sort(key=lambda x: -1*wordcount[x])
+    return messages, stats
+
+def generate_stats(stats, users):
+    stats_data = {}
+
+    posters = list(stats["msgcount"].keys())
+    posters.sort(key=lambda x: stats["msgcount"][x])
+    stats_data['posters'] = {p: stats['msgcount'][p] for p in posters}
+
+    stats_data['total_messages'] = stats['count']
+
+    words = list(stats["wordcount"].keys())
+    words.sort(key=lambda x: -1*stats["wordcount"][x])
+
+    word_stats = {}
     for w in words:
-        if wordcount[w] > 24:
-            inc = 1000000*wordcount[w]/wordtot
-            print(f"[{w}] incidence rate per million: {int(inc)}<br>")
+        if stats["wordcount"][w] > 24:
+            inc = 1000000 * stats["wordcount"][w] / stats["wordtot"]
+            word_stats[w] = {'incidence_per_million': int(inc), 'users': {}}
             for u in users.values():
-                usertot = personwords[u]
+                usertot = stats["personwords"][u]
                 if usertot > 400:
-                    usersaycount = personwordcount[f"{u}+{w}"]
+                    usersaycount = stats["personwordcount"][f"{u}+{w}"]
                     userrate = 1000000*((usersaycount+(inc*inc/1000000))/(usertot+inc))
                     ratio = userrate/inc
                     if ratio > 1.5 and usersaycount >= 10:
-                        if ratio > 4:
-                            print("!!!")
-                        print(f"--------{u} says \"{w}\" {ratio:.1f}x as often {userrate} ({usersaycount}/{usertot}) (said {(100*usersaycount/wordcount[w]):.1f}% of the \"{w}\"s)<br>")
+                        word_stats[w]['users'][u] = {
+                            'ratio': f"{ratio:.1f}x",
+                            'user_rate': userrate,
+                            'user_say_count': usersaycount,
+                            'user_total_words': usertot,
+                            'percentage_of_word': f"{(100*usersaycount/stats['wordcount'][w]):.1f}%"
+                        }
+    stats_data['word_stats'] = word_stats
 
-    print("<p>")
-    for u in personwords.keys():
-        print(f"{u}: {personwords[u]}, {msgcount[u]} {(100*personwords[u]/wordtot):.1f}% of all words<br>")
+    user_word_stats = {}
+    for u in stats["personwords"].keys():
+        user_word_stats[u] = {
+            'total_words': stats['personwords'][u],
+            'message_count': stats['msgcount'][u],
+            'percentage_of_all_words': f"{(100*stats['personwords'][u]/stats['wordtot']):.1f}%"
+        }
+    stats_data['user_word_stats'] = user_word_stats
+
+    return stats_data
+
+def main():
+    config = load_config()
+    users = load_users(config['users_file'])
+
+    parser = argparse.ArgumentParser(description='Slack conversation extractor.')
+    parser.add_argument('--channels', nargs='+', help='The channel directories to process.')
+    parser.add_argument('--all-channels', action='store_true', help='Process all channels in the input directory.')
+    parser.add_argument('--stats', action='store_true', help='Enable statistics generation.')
+    args = parser.parse_args()
+
+    if args.all_channels:
+        input_dir = config['input_directory']
+        try:
+            channels = [d for d in os.listdir(input_dir) if os.path.isdir(os.path.join(input_dir, d))]
+        except FileNotFoundError:
+            logging.error(f"Input directory not found at '{input_dir}'")
+            sys.exit(1)
+    elif args.channels:
+        channels = args.channels
+    else:
+        logging.error("Please specify channels to process using --channels or use --all-channels.")
+        sys.exit(1)
+
+    output_dir = config['output_directory']
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    for channel in channels:
+        logging.info(f"Processing channel: {channel}")
+        channel_dir = os.path.join(config['input_directory'], channel)
+
+        messages, stats = process_messages(channel_dir, users)
+
+        if not messages:
+            logging.warning(f"No messages found for channel: {channel}")
+            continue
+
+        output = render_template('channel.html', {'messages': messages})
+
+        output_file = os.path.join(output_dir, f"{channel}.html")
+        try:
+            with open(output_file, 'w') as f:
+                f.write(output)
+            logging.info(f"Generated HTML for channel: {channel}")
+        except IOError as e:
+            logging.error(f"Error writing HTML file for channel {channel}: {e}")
+
+        if args.stats:
+            stats_data = generate_stats(stats, users)
+            stats_file = os.path.join(output_dir, f"{channel}_stats.json")
+            try:
+                with open(stats_file, 'w') as f:
+                    json.dump(stats_data, f, indent=4)
+                logging.info(f"Generated stats for channel: {channel}")
+            except IOError as e:
+                logging.error(f"Error writing stats file for channel {channel}: {e}")
+
+if __name__ == '__main__':
+    main()
