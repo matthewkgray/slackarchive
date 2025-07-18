@@ -84,6 +84,8 @@ def process_messages(channel_dir, users):
     messages = []
 
     for fn in files:
+        if not re.match(r'\d{4}-\d{2}-\d{2}\.json$', fn):
+            continue
         file_path = os.path.join(channel_dir, fn)
         try:
             with open(file_path) as f:
@@ -209,7 +211,7 @@ def main():
     if args.all_channels:
         input_dir = config['input_directory']
         try:
-            channels = [d for d in os.listdir(input_dir) if os.path.isdir(os.path.join(input_dir, d))]
+            channels = [d for d in os.listdir(input_dir) if os.path.isdir(os.path.join(input_dir, d)) and any(re.match(r'\d{4}-\d{2}-\d{2}\.json$', f) for f in os.listdir(os.path.join(input_dir, d)))]
         except FileNotFoundError:
             logging.error(f"Input directory not found at '{input_dir}'")
             sys.exit(1)

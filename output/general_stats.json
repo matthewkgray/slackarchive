@@ -1,20 +1,20 @@
 {
     "posters": {
-        "Alice": 1,
-        "Bob": 1
+        "U123": 1,
+        "U456": 1
     },
     "total_messages": 2,
     "word_stats": {},
     "user_word_stats": {
-        "Alice": {
+        "U123": {
             "total_words": 4,
             "message_count": 1,
-            "percentage_of_all_words": "33.3%"
+            "percentage_of_all_words": "26.7%"
         },
-        "Bob": {
-            "total_words": 8,
+        "U456": {
+            "total_words": 11,
             "message_count": 1,
-            "percentage_of_all_words": "66.7%"
+            "percentage_of_all_words": "73.3%"
         }
     }
 }
