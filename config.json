@@ -1,5 +1,9 @@
 {
-  "input_directory": "slack_data",
-  "output_directory": "output",
-  "users_file": "users.json"
+    "input_directory": "slack_data",
+    "output_directory": "output",
+    "users_file": "users.json",
+    "user_colors": {
+        "U123": "#cee6e0",
+        "U456": "#d1d9e7"
+    }
 }

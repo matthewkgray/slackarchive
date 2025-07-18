@@ -3,6 +3,8 @@
 import json, datetime
 import os, sys
 import re
+import random
+import shutil
 from collections import defaultdict
 import argparse
 import logging
@@ -17,7 +19,7 @@ def load_config(config_file='config.json'):
         logging.error(f"Config file not found at '{config_file}'")
         sys.exit(1)
 
-def load_users(users_file):
+def load_users(users_file, config):
     users = {}
     try:
         with open(users_file) as f:
@@ -25,9 +27,19 @@ def load_users(users_file):
             for u in data:
                 id = u["id"]
                 username = u["name"]
-                users[id] = username
+                users[id] = {'name': username}
     except FileNotFoundError:
         logging.warning(f"Users file not found at '{users_file}'. Usernames will not be resolved.")
+
+    if 'user_colors' not in config:
+        config['user_colors'] = {}
+
+    for id, user_data in users.items():
+        if id not in config['user_colors']:
+            r = lambda: random.randint(200, 255)
+            config['user_colors'][id] = f'#{r():x}{r():x}{r():x}'
+        user_data['color'] = config['user_colors'][id]
+
     return users
 
 def format_text(t, users):
@@ -41,8 +53,8 @@ def format_text(t, users):
         idx = t.index("<@")
         endangle = t[idx+2:].index(">")
         id = t[idx+2:idx+endangle+2]
-        log += f"Trying to replace__<@{id}>__ with @{users.get(id, '???')} at index {idx}->{endangle}"
-        t = t.replace(f"<@{id}>", "@"+users.get(id, "???"))
+        log += f"Trying to replace__<@{id}>__ with @{users.get(id, {'name': '???'})['name']} at index {idx}->{endangle}"
+        t = t.replace(f"<@{id}>", "@"+users.get(id, {'name': '???'})['name'])
     if n > 5:
         print(f"Lots of replacements? {t}: {log}q")
 
@@ -110,10 +122,13 @@ def process_messages(channel_dir, users):
             userid = msg.get("user", None)
 
             if userid:
-                username = users.get(userid, userid)
+                user_data = users.get(userid, {'name': userid, 'color': '#ffffff'})
+                username = user_data['name']
+                color = user_data['color']
             else:
                 userid = "bot/other"
                 username = "BOT"
+                color = '#ffffff'
 
             stats["msgcount"][username] += 1
             ts = msg["ts"]
@@ -165,7 +180,8 @@ def process_messages(channel_dir, users):
                 'new_month': new_month,
                 'month_id': month_id,
                 'month_name': month_name,
-                'temporal_gap': temporal_gap
+                'temporal_gap': temporal_gap,
+                'color': color
             }
 
             if threadid and threadid != ts:
@@ -228,7 +244,7 @@ def generate_stats(stats, users):
 
 def main():
     config = load_config()
-    users = load_users(config['users_file'])
+    users = load_users(config['users_file'], config)
 
     parser = argparse.ArgumentParser(description='Slack conversation extractor.')
     parser.add_argument('--channels', nargs='+', help='The channel directories to process.')
@@ -252,6 +268,8 @@ def main():
     output_dir = config['output_directory']
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
+
+    shutil.copy(os.path.join('templates', 'style.css'), output_dir)
 
     for channel in channels:
         logging.info(f"Processing channel: {channel}")
@@ -282,6 +300,9 @@ def main():
                 logging.info(f"Generated stats for channel: {channel}")
             except IOError as e:
                 logging.error(f"Error writing stats file for channel {channel}: {e}")
+
+    with open('config.json', 'w') as f:
+        json.dump(config, f, indent=4)
 
 if __name__ == '__main__':
     main()

@@ -21,7 +21,7 @@
             <div class="temporal-gap">{{ message.temporal_gap }}</div>
         {% endif %}
 
-        <div class="message" id="{{ message.ts }}">
+        <div class="message" id="{{ message.ts }}" style="background-color: {{ message.color }};">
             <div class="header">
                 <span class="author">{{ message.user }}</span>
                 <a href="#{{ message.ts }}" class="timestamp">{{ message.when }}</a>
@@ -31,7 +31,7 @@
                 {% if message.is_thread_start and message.replies %}
                     <div class="thread">
                         {% for reply in message.replies %}
-                            <div class="message">
+                            <div class="message" style="background-color: {{ reply.color }};">
                                 <div class="header">
                                     <span class="author">{{ reply.user }}</span>
                                     <a href="#{{ reply.ts }}" class="timestamp">{{ reply.when }}</a>
